@@ -3,7 +3,7 @@ name = "Beequeen Hive"
 description = "Port of the DST Beequeen and Gigantic Hive"
 author = "Alberto Pietralunga"
 
-version = "1.0.1"
+version = "1.0.0"
 forumthread = ""
 
 api_version = 6
