@@ -84,7 +84,7 @@ local function MakeFx(t)
     return Prefab("common/fx/"..t.name, fn, assets)
 end
 
-local honeysplash_prefab =  {
+local honeysplash_prefab = {
     name = "honey_splash",
     bank = "honey_splash",
     build = "honey_splash",
@@ -94,5 +94,28 @@ local honeysplash_prefab =  {
     fn = FinalOffset1,
 }
 
+local bee_poof_big_prefab = {
+    name = "bee_poof_big",
+    bank = "bee_poof",
+    build = "bee_poof",
+    anim = "anim",
+    sound = "dontstarve/common/deathpoof",
+    transform = Vector3(1.4, 1.4, 1.4),
+    fn = function(inst)
+        inst.AnimState:SetFinalOffset(1)
+        inst.SoundEmitter:PlaySound("beequeenhive/beeguard/puff", nil, .6)
+    end,
+}
 
-return MakeFx(honeysplash_prefab)
+
+local bee_poof_small_prefab = {
+    name = "bee_poof_small",
+    bank = "bee_poof",
+    build = "bee_poof",
+    anim = "anim",
+    sound = "dontstarve/common/deathpoof",
+    transform = Vector3(1.4, 1.4, 1.4),
+    fn = FinalOffset1,
+}
+
+return MakeFx(honeysplash_prefab), MakeFx(bee_poof_big_prefab), MakeFx(bee_poof_small_prefab)

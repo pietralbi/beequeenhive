@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<Atlas>
+	<Texture filename="beequeen.tex" />
+	<Elements>
+		<Element name="beequeen.tex" u1="0.001" u2="0.999" v2="0.999" v1="0.001" />
+	</Elements>
+</Atlas>

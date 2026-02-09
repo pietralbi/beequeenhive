@@ -9,9 +9,7 @@ local prefabs =
 {
     "beeguard",
     "honey_trail",
-	-- "ocean_splash_ripple1",
-	-- "ocean_splash_ripple2",
-    -- "royal_jelly",
+    "royal_jelly",
     "honeycomb",
     "honey",
     "stinger",
@@ -22,13 +20,13 @@ local prefabs =
 
 SetSharedLootTable('beequeen',
 {
-    -- {'royal_jelly',      1.00},
-    -- {'royal_jelly',      1.00},
-    -- {'royal_jelly',      1.00},
-    -- {'royal_jelly',      1.00},
-    -- {'royal_jelly',      1.00},
-    -- {'royal_jelly',      1.00},
-    -- {'royal_jelly',      0.50},
+    {'royal_jelly',      1.00},
+    {'royal_jelly',      1.00},
+    {'royal_jelly',      1.00},
+    {'royal_jelly',      1.00},
+    {'royal_jelly',      1.00},
+    {'royal_jelly',      1.00},
+    {'royal_jelly',      0.50},
     {'honeycomb',        1.00},
     {'honeycomb',        0.50},
     {'honey',            1.00},
@@ -152,13 +150,47 @@ end
 local function RetargetFn(inst)
     local notags = {"FX", "NOCLICK","INLIMBO", "monster", "bee"}
 
-    return FindEntity(inst, TUNING.BEEQUEEN_AGGRO_DIST, function(guy)
-        return inst.components.combat:CanTarget(guy)
-               and not guy:HasTag("prey")
-               and not guy:HasTag("smallcreature") end, nil, notags)
+    local combat = inst.components.combat
+    local target = combat.target
+    local engaged = target ~= nil
+        and target:IsValid()
+        and inst:IsNear(target, TUNING.BEEQUEEN_ATTACK_RANGE + (target.GetPhysicsRadius ~= nil and target:GetPhysicsRadius(0) or 0))
+
+    local base_radius = engaged and TUNING.BEEQUEEN_ATTACK_RANGE or TUNING.BEEQUEEN_AGGRO_DIST
+
+    local function isgood(guy)
+        if guy == nil or not guy:IsValid() then
+            return false
+        end
+        if not guy:HasTag("player") then
+            return false
+        end
+        if not combat:CanTarget(guy) then
+            return false
+        end
+        if guy:HasTag("prey") or guy:HasTag("smallcreature") then
+            return false
+        end
+
+        local extra = (guy.GetPhysicsRadius ~= nil) and guy:GetPhysicsRadius(0) or 0
+        return inst:IsNear(guy, base_radius + extra)
+    end
+
+    return FindEntity(inst, base_radius, isgood, nil, notags)
 end
 
+-- local function RetargetFn(inst)
+--     local notags = {"FX", "NOCLICK","INLIMBO", "monster", "bee"}
+
+--     return FindEntity(inst, TUNING.BEEQUEEN_AGGRO_DIST, function(guy)
+--         return inst.components.combat:CanTarget(guy)
+--                and not guy:HasTag("prey")
+--                and not guy:HasTag("smallcreature") end, nil, notags)
+-- end
+
 local function KeepTargetFn(inst, target)
+    -- U.log("Queen current target: " .. target.name)
+
     return inst.components.combat:CanTarget(target)
         and target:GetDistanceSqToPoint(inst.components.knownlocations:GetLocation("spawnpoint")) < TUNING.BEEQUEEN_DEAGGRO_DIST * TUNING.BEEQUEEN_DEAGGRO_DIST
 end
@@ -340,7 +372,7 @@ local function fn()
     inst:AddTag("largecreature")
     inst:AddTag("flying")
 
-    inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/wings_LP", "flying")
+    inst.SoundEmitter:PlaySound("beequeenhive/beequeen/wings_LP", "flying")
 
     inst:AddComponent("inspectable")
     inst.components.inspectable:RecordViews()

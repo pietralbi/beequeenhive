@@ -45,7 +45,7 @@ local function SetVariation(inst, rand, scale, duration)
 
         inst.trailname = "trail"..tostring(rand)
         inst.duration = duration
-        inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/honey_drip")
+        inst.SoundEmitter:PlaySound("beequeenhive/hive/honey_drip")
         inst.AnimState:PlayAnimation(inst.trailname.."_pre")
         inst:ListenForEvent("animover", OnAnimOver)
 

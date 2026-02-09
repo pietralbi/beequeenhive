@@ -64,17 +64,10 @@ local function ShouldHoldFormation(inst)
     return GetQueenOffset(inst) ~= nil and GetQueen(inst) ~= nil
 end
 
-local RUN_AWAY_PARAMS =
-{
-    tags = { "_combat", "_health" },
-    notags = { "bee", "playerghost", "INLIMBO" },
-    fn = function(guy)
-        return not guy.components.health:IsDead()
-            and (   guy:HasTag("player") or
-                    (   guy.components.combat.target ~= nil and
-                        guy.components.combat.target:HasTag("bee")  ))
-    end,
-}
+local function hunterfn(inst)
+    local t = inst.components.combat.target
+    return (t ~= nil and t:IsValid()) and t or nil
+end
 
 local RUN_AWAY_DIST = 3
 local STOP_RUN_AWAY_DIST = 6
@@ -87,7 +80,7 @@ function BeeGuardBrain:OnStart()
         WhileNode(function() return ShouldChase(self) end, "BreakFormation",
             PriorityNode({
                 WhileNode(function() return ShouldDodge(self.inst) end, "Dodge",
-                    RunAway(self.inst, RUN_AWAY_PARAMS, RUN_AWAY_DIST, STOP_RUN_AWAY_DIST)),
+                    RunAway(self.inst, hunterfn, RUN_AWAY_DIST, STOP_RUN_AWAY_DIST)),
                 ChaseAndAttack(self.inst),
             }, .5)),
         WhileNode(function() return ShouldHoldFormation(self.inst) end, "HoldFormation",

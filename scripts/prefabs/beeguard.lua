@@ -10,14 +10,13 @@ local prefabs =
     "bee_poof_big",
     "bee_poof_small",
     "stinger",
-	-- "ocean_splash_med1",
-	-- "ocean_splash_med2",
     "beeguardcorpse",
 }
 
 --------------------------------------------------------------------------
 
 local brain = require("brains/beeguardbrain")
+local U = require("beequeenhive_utils")
 
 --------------------------------------------------------------------------
 
@@ -26,8 +25,8 @@ local normalsounds =
     attack = "dontstarve/bee/killerbee_attack",
     --attack = "dontstarve/creatures/together/bee_queen/beeguard/attack",
     buzz = "dontstarve/bee/bee_fly_LP",
-    hit = "dontstarve/creatures/together/bee_queen/beeguard/hurt",
-    death = "dontstarve/creatures/together/bee_queen/beeguard/death",
+    hit = "beequeenhive/beeguard/hurt",
+    death = "beequeenhive/beeguard/death",
 }
 
 local poofysounds =
@@ -35,8 +34,8 @@ local poofysounds =
     attack = "dontstarve/bee/killerbee_attack",
     --attack = "dontstarve/creatures/together/bee_queen/beeguard/attack",
     buzz = "dontstarve/bee/killerbee_fly_LP",
-    hit = "dontstarve/creatures/together/bee_queen/beeguard/hurt",
-    death = "dontstarve/creatures/together/bee_queen/beeguard/death",
+    hit = "beequeenhive/beeguard/hurt",
+    death = "beequeenhive/beeguard/death",
 }
 
 local function EnableBuzz(inst, enable)
@@ -133,10 +132,8 @@ local function CheckFocusTarget(inst)
     return inst._focustarget
 end
 
-local FRIENDLYBEES_MUST = { "_combat", "_health" }
 local FRIENDLYBEES_CANT = { "INLIMBO", "noauradamage", "bee", "companion", "player" }
 local FRIENDLYBEES_MUST_ONE = { "monster", "prey" }
-local BEE_STUCK_MUST = { "_combat" }
 local function RetargetFn(inst)
     if inst:IsFriendly() then
         if inst:GetQueen() == nil then -- NOTES(JBK): A friendly bee must wait for its queen to take action.
@@ -145,7 +142,7 @@ local function RetargetFn(inst)
         local ix, iy, iz = inst.Transform:GetWorldPosition()
         local ents = TheSim:FindEntities(
             ix, iy, iz, TUNING.BOOK_BEES_MAX_ATTACK_RANGE,
-            FRIENDLYBEES_MUST, FRIENDLYBEES_CANT, FRIENDLYBEES_MUST_ONE
+            nil, FRIENDLYBEES_CANT, FRIENDLYBEES_MUST_ONE
         )
 
         local queen = inst:GetQueen()
@@ -161,22 +158,6 @@ local function RetargetFn(inst)
 	local focustarget = CheckFocusTarget(inst)
 	if focustarget ~= nil then
 		return focustarget, not inst.components.combat:TargetIs(focustarget)
-	end
-
-	if inst.components.combat:HasTarget() then
-		local queen = inst:GetQueen()
-		if queen ~= nil then
-			local commander = queen.components.commander
-			local x, y, z = inst.Transform:GetWorldPosition()
-			for i, v in ipairs(TheSim:FindEntities(x, 0, z, TUNING.BEEGUARD_ATTACK_RANGE + 3, BEE_STUCK_MUST)) do
-				if v ~= inst then
-					local target = v.components.combat.target
-					if target == queen or (commander ~= nil and commander:IsSoldier(target)) then
-						return v, true
-					end
-				end
-			end
-		end
 	end
 
     local player = GetPlayer()
@@ -451,7 +432,9 @@ local function fn()
     inst:AddTag("scarytoprey")
     inst:AddTag("flying")
 
-    MakeInventoryFloatable(inst)
+    if U.enabledSHIP or U.enabledPORK then
+        MakeInventoryFloatable(inst)
+    end
 
     inst:AddComponent("inspectable")
 

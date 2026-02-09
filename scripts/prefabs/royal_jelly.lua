@@ -1,20 +1,21 @@
-local assets =
+local assets_royaljelly =
 {
     Asset("ANIM", "anim/royal_jelly.zip"),
 }
 
-local prefabs =
+local assets_jellybean = {
+    Asset("ANIM", "anim/jellybean.zip"),
+}
+
+local prefabs_royaljelly =
 {
     "spoiled_food",
 }
 
-local function fn()
+local function fn_royaljelly()
     local inst = CreateEntity()
-
     inst.entity:AddTransform()
     inst.entity:AddAnimState()
-    inst.entity:AddNetwork()
-
     MakeInventoryPhysics(inst)
 
     inst.AnimState:SetBuild("royal_jelly")
@@ -22,14 +23,6 @@ local function fn()
     inst.AnimState:PlayAnimation("idle")
 
     inst:AddTag("honeyed")
-
-    MakeInventoryFloatable(inst, "small", nil, 0.8)
-
-    inst.entity:SetPristine()
-
-    if not TheWorld.ismastersim then
-        return inst
-    end
 
     inst:AddComponent("edible")
     inst.components.edible.healthvalue = TUNING.HEALING_LARGE
@@ -46,12 +39,46 @@ local function fn()
 
     inst:AddComponent("tradable")
     inst:AddComponent("inventoryitem")
+    inst.components.inventoryitem.atlasname = "images/inventoryimages/royal_jelly.xml"
 
     inst:AddComponent("inspectable")
-
-    MakeHauntableLaunch(inst)
 
     return inst
 end
 
-return Prefab("royal_jelly", fn, assets, prefabs)
+local function fn_jellybean()
+    local inst = CreateEntity()
+    inst.entity:AddTransform()
+    inst.entity:AddAnimState()
+    MakeInventoryPhysics(inst)
+
+    inst.AnimState:SetBuild("jellybean")
+    inst.AnimState:SetBank("jellybean")
+    inst.AnimState:PlayAnimation("idle", false)
+
+    inst:AddTag("preparedfood")
+
+    inst:AddComponent("edible")
+    inst.components.edible.healthvalue = TUNING.JELLYBEANS_HEALTH
+    inst.components.edible.hungervalue = 0
+    inst.components.edible.foodtype = "GENERIC"
+    inst.components.edible.foodstate = "PREPARED"
+    inst.components.edible.sanityvalue = TUNING.SANITY_TINY
+
+    inst:AddComponent("inspectable")
+
+    inst:AddComponent("inventoryitem")
+    inst.components.inventoryitem.atlasname = "images/inventoryimages/jellybean.xml"
+
+    inst:AddComponent("stackable")
+    inst.components.stackable.maxsize = 3
+
+    inst:AddTag("honeyed")
+
+    inst:AddComponent("bait")
+    inst:AddComponent("tradable")
+
+    return inst
+end
+
+return Prefab("royal_jelly", fn_royaljelly, assets_royaljelly, prefabs_royaljelly), Prefab("common/inventory/jellybean", fn_jellybean, assets_jellybean)

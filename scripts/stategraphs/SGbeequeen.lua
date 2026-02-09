@@ -5,6 +5,8 @@ local U = require("beequeenhive_utils")
 local FOCUSTARGET_MUST_TAGS = { "_combat", "_health" }
 local FOCUSTARGET_CANT_TAGS = { "INLIMBO", "player", "bee", "notarget", "invisible", "flight" }
 
+local SHAKE_DIST = rawget(_G, "SHAKE_DIST") or 40
+
 local function ShakeIfClose(inst)
     local player = GetClosestInstWithTag("player", inst, SHAKE_DIST)
     if player then
@@ -13,7 +15,7 @@ local function ShakeIfClose(inst)
 end
 
 local function StartFlapping(inst)
-    inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/wings_LP", "flying")
+    inst.SoundEmitter:PlaySound("beequeenhive/beequeen/wings_LP", "flying")
 end
 
 local function RestoreFlapping(inst)
@@ -29,7 +31,7 @@ end
 local function DoScreech(inst)
 ---@diagnostic disable-next-line: undefined-field
     TheCamera:Shake("FULL", 1, .015, .3)
-    inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/taunt")
+    inst.SoundEmitter:PlaySound("beequeenhive/beequeen/taunt")
 end
 
 local function DoScreechAlert(inst)
@@ -72,6 +74,44 @@ end
 
 --------------------------------------------------------------------------
 
+local function HitReactOnCooldown(inst, delay, max_hitreacts, skip_cooldown_fn)
+    local combat = inst.components.combat
+    local delaytime = delay or inst.hit_recovery or TUNING.DEFAULT_HIT_RECOVERY
+    local on_cooldown = false
+
+    if inst._last_hitreact_time ~= nil and inst._last_hitreact_time + delaytime >= GetTime() then
+        -- stunlock cap
+        local m = max_hitreacts or inst._max_hitreacts
+        if m ~= nil then
+            if m ~= nil then
+                if inst._hitreact_count == nil then
+                    inst._hitreact_count = 2
+                    return false
+                elseif inst._hitreact_count < m then
+                    inst._hitreact_count = inst._hitreact_count + 1
+                    return false
+                end
+            end
+        end
+
+        -- skip rule (post-cap)
+        local skipfn = skip_cooldown_fn or inst._hitreact_skip_cooldown_fn
+        if skipfn ~= nil then
+            on_cooldown = not skipfn(inst, inst._last_hitreact_time, delay)
+        elseif combat ~= nil then
+            on_cooldown = not (combat:InCooldown() and inst.sg:HasStateTag("idle"))
+        else
+            on_cooldown = true
+        end
+    end
+
+    if inst._hitreact_count ~= nil and not on_cooldown then
+        inst._hitreact_count = 1
+    end
+
+    return on_cooldown
+end
+
 local function hit_recovery_skip_cooldown_fn(inst, last_t, delay)
 	--no skipping when we're dodging (hit_recovery increased)
 	return inst.hit_recovery == TUNING.BEEQUEEN_HIT_RECOVERY
@@ -93,8 +133,7 @@ local events =
     end),
 	EventHandler("attacked", function(inst, data)
 		if inst.components.health and not inst.components.health:IsDead() then
-			if (not inst.sg:HasStateTag("busy") or inst.sg:HasStateTag("caninterrupt")) and
-				not CommonHandlers.HitRecoveryDelay(inst, nil, TUNING.BEEQUEEN_MAX_STUN_LOCKS, hit_recovery_skip_cooldown_fn)
+			if (not inst.sg:HasStateTag("busy") or inst.sg:HasStateTag("caninterrupt")) and not HitReactOnCooldown(inst, nil, TUNING.BEEQUEEN_MAX_STUN_LOCKS, hit_recovery_skip_cooldown_fn)
 			then
 				inst.sg:GoToState("hit")
 			end
@@ -158,7 +197,7 @@ local states =
         timeline =
         {
             TimeEvent(0, function(inst)
-                inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/breath")
+                inst.SoundEmitter:PlaySound("beequeenhive/beequeen/breath")
             end),
         },
 
@@ -203,7 +242,7 @@ local states =
         timeline =
         {
             TimeEvent(0, function(inst)
-                inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/breath")
+                inst.SoundEmitter:PlaySound("beequeenhive/beequeen/breath")
             end),
         },
 
@@ -246,7 +285,7 @@ local states =
             inst.components.locomotor:StopMoving()
             inst.components.health:SetInvincible(true)
             inst.AnimState:PlayAnimation("enter")
-            inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/enter")
+            inst.SoundEmitter:PlaySound("beequeenhive/beequeen/enter")
             inst.sg.mem.wantstoscreech = true
         end,
 
@@ -331,8 +370,8 @@ local states =
         onenter = function(inst)
             inst.components.locomotor:StopMoving()
             inst.AnimState:PlayAnimation("hit")
-            inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/hit")
-			CommonHandlers.UpdateHitRecoveryDelay(inst)
+            inst.SoundEmitter:PlaySound("beequeenhive/beequeen/hit")
+            inst._last_hitreact_time = GetTime()
         end,
 
         timeline =
@@ -386,7 +425,7 @@ local states =
                 ShakeIfClose(inst)
                 if inst.persists then
                     inst.persists = false
-                    inst:DropDeathLoot()
+                    inst.components.lootdropper:DropLoot(Vector3(inst.Transform:GetWorldPosition()))
                     if inst.hivebase ~= nil then
                         inst.hivebase.queenkilled = true
                     end
@@ -413,7 +452,7 @@ local states =
                 inst.components.sanityaura.aura = -TUNING.SANITYAURA_HUGE
             end
             inst:RemoveTag("NOCLICK")
-            inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/wings_LP", "flying")
+            inst.SoundEmitter:PlaySound("beequeenhive/beequeen/wings_LP", "flying")
             inst:StartHoney()
         end,
     },
@@ -462,10 +501,10 @@ local states =
         timeline =
         {
             TimeEvent(0, function(inst)
-                inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/attack_pre")
+                inst.SoundEmitter:PlaySound("beequeenhive/beequeen/attack_pre")
             end),
             TimeEvent(14 * FRAMES, function(inst)
-                inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/attack")
+                inst.SoundEmitter:PlaySound("beequeenhive/beequeen/attack")
                 inst.components.combat:DoAttack(inst.sg.statemem.target)
             end),
             U.OnNoSleepTimeEvent(23 * FRAMES, function(inst)
@@ -489,7 +528,7 @@ local states =
             FaceTarget(inst)
             inst.components.locomotor:StopMoving()
             inst.AnimState:PlayAnimation("spawn")
-            inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/spawn")
+            inst.SoundEmitter:PlaySound("beequeenhive/beequeen/spawn")
         end,
 
         timeline =
@@ -574,7 +613,7 @@ local states =
             TimeEvent(8 * FRAMES, DoScreech),
             TimeEvent(9 * FRAMES, DoScreechAlert),
             TimeEvent(11 * FRAMES, function(inst)
-                inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/attack_pre")
+                inst.SoundEmitter:PlaySound("beequeenhive/beequeen/attack_pre")
             end),
             TimeEvent(18 * FRAMES, function(inst)
                 inst.sg.mem.wantstofocustarget = nil
@@ -584,24 +623,17 @@ local states =
 
                 local soldiers = inst.components.commander:GetAllSoldiers()
                 if #soldiers > 0 then
-                    local players = {}
-                    for k, v in pairs(inst.components.grouptargeter:GetTargets()) do
-                        if inst:IsNear(k, TUNING.BEEQUEEN_FOCUSTARGET_RANGE) then
-                            table.insert(players, k)
+                    local player = GetPlayer()
+                    player = inst:IsNear(player, TUNING.BEEQUEEN_FOCUSTARGET_RANGE) and player or nil
+                    local targets = {}
+                    if player then
+                        table.insert(targets, player)
+                    else
+                        if inst.components.combat.target ~= nil and not inst.components.combat.target:HasTag("player") then
+                            table.insert(targets, inst.components.combat.target)
                         end
                     end
                     local maxtargets = math.max(1, math.floor(#soldiers / TUNING.BEEGUARD_SQUAD_SIZE))
-                    local targets = {}
-                    for i = 1, maxtargets do
-                        if #players > 0 then
-                            table.insert(targets, table.remove(players, math.random(#players)))
-                        else
-                            if inst.components.combat.target ~= nil and not inst.components.combat.target:HasTag("player") then
-                                table.insert(targets, inst.components.combat.target)
-                            end
-                            break
-                        end
-                    end
                     if #targets < maxtargets then
                         local x, y, z = inst.Transform:GetWorldPosition()
                         for i, v in ipairs(TheSim:FindEntities(x, y, z, TUNING.BEEQUEEN_FOCUSTARGET_RANGE, FOCUSTARGET_MUST_TAGS, FOCUSTARGET_CANT_TAGS)) do
@@ -691,12 +723,12 @@ local states =
         timeline =
         {
             TimeEvent(6 * FRAMES, function(inst)
-                inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/attack_pre")
+                inst.SoundEmitter:PlaySound("beequeenhive/beequeen/attack_pre")
             end),
             TimeEvent(7 * FRAMES, DoScreech),
             TimeEvent(8 * FRAMES, DoScreechAlert),
             TimeEvent(20 * FRAMES, function(inst)
-                inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/attack_pre")
+                inst.SoundEmitter:PlaySound("beequeenhive/beequeen/attack_pre")
             end),
             TimeEvent(22 * FRAMES, DoScreech),
             TimeEvent(23 * FRAMES, DoScreechAlert),
@@ -726,7 +758,7 @@ local states =
             TimeEvent(8 * FRAMES, DoScreech),
             TimeEvent(9 * FRAMES, DoScreechAlert),
             TimeEvent(11 * FRAMES, function(inst)
-                inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/attack_pre")
+                inst.SoundEmitter:PlaySound("beequeenhive/beequeen/attack_pre")
             end),
             U.OnNoSleepTimeEvent(25 * FRAMES, function(inst)
                 inst.sg:AddStateTag("caninterrupt")
@@ -764,7 +796,7 @@ local states =
             TimeEvent(8 * FRAMES, DoScreech),
             TimeEvent(9 * FRAMES, DoScreechAlert),
             TimeEvent(19 * FRAMES, function(inst)
-                inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/attack_pre")
+                inst.SoundEmitter:PlaySound("beequeenhive/beequeen/attack_pre")
             end),
             TimeEvent(23 * FRAMES, function(inst)
                 inst.sg.statemem.ended = true
@@ -836,7 +868,7 @@ U.AddSleepExStates(states,
     end,
     onexitsleep = CleanupIfSleepInterrupted,
     onsleeping = function(inst)
-        inst.SoundEmitter:PlaySound("dontstarve/creatures/together/bee_queen/sleep")
+        inst.SoundEmitter:PlaySound("beequeenhive/beequeen/sleep")
     end,
     onexitsleeping = CleanupIfSleepInterrupted,
     onwake = function(inst)

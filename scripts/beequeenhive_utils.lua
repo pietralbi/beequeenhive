@@ -60,7 +60,7 @@ function M.PlayFootstepDLC(inst, volume)
     if sound then
         local tile, tileinfo = inst:GetCurrentTileType()
         if inst.components.locomotor ~= nil and inst.components.locomotor:TempGroundTile() then
-            M.log("Overriding footstep sound tile")
+            -- M.log("Overriding footstep sound tile")
             tile = inst.components.locomotor:TempGroundTile()
             tileinfo = GetTileInfo(tile)
         end
@@ -149,7 +149,7 @@ end
 local function onsleepex(inst)
     inst.sg.mem.sleeping = true
 	if inst.components.health == nil or not inst.components.health:IsDead() then
-        if not inst.sg:HasAnyStateTag("nosleep", "sleeping") then
+        if not inst.sg:HasStateTag("nosleep") and not inst.sg:HasStateTag("sleeping") then
 		    inst.sg:GoToState("sleep")
 		end
     end
@@ -326,7 +326,7 @@ end
 local function onenterfrozenpst(inst)
     if inst.components.freezable == nil then
         onunfreeze(inst)
-    elseif inst.components.freezable:IsThawing() then
+    elseif inst.components.freezable.state == "THAWING" then
         onthaw(inst)
     elseif not inst.components.freezable:IsFrozen() then
         onunfreeze(inst)

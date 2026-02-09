@@ -2,6 +2,7 @@ require "behaviours/chaseandattack"
 require "behaviours/faceentity"
 require "behaviours/wander"
 require "behaviours/leash"
+local U = require("beequeenhive_utils")
 
 local FLEE_DELAY = 15
 local DODGE_DELAY = 5
@@ -116,21 +117,26 @@ end
 
 local function ShouldDodge(self)
     if self._dodgedest ~= nil then
+        U.log("ShouldDodge _dodgedest ~= nil, starting dodge")
         return true
     end
     local t = GetTime()
     if self.inst.sg.mem.wantstododge then
         --Override dodge timer once
+        U.log("ShouldDodge Override dodge timer once")
         self.inst.sg.mem.wantstododge = nil
     elseif self.inst.components.combat:GetLastAttackedTime() + DODGE_DELAY < t then
         --Reset dodge timer
         self._dodgetime = nil
+        U.log("ShouldDodge Reset dodge timer")
         return false
     elseif self._dodgetime == nil then
         --Start dodge timer
-        self._dodgetime = t
+        U.log("ShouldDodge Start dodge timer at " .. tostring(t))
+        -- self._dodgetime = t
         return false
     elseif self._dodgetime + DODGE_DELAY * CalcDodgeMult(self) >= t then
+        U.log("Wait dodge timer (" .. tostring(DODGE_DELAY) .. "s)")
         --Wait dodge timer
         return false
     end
@@ -188,11 +194,12 @@ local function ShouldDodge(self)
         end
     end
     if mindanger < math.huge then
+        U.log("ShouldDodge setting _dodgedest")
         self._dodgedest = bestdest
         self._dodgetime = nil
         self.inst.components.locomotor.walkspeed = TUNING.BEEQUEEN_DODGE_SPEED
         self.inst.hit_recovery = TUNING.BEEQUEEN_DODGE_HIT_RECOVERY
-        CommonHandlers.UpdateHitRecoveryDelay(self.inst)
+        self.inst._last_hitreact_time = GetTime()
         return true
     end
     --Reset dodge timer to retry in half the time
@@ -205,7 +212,6 @@ function BeeQueenBrain:OnStop()
     self.inst.components.locomotor.walkspeed = TUNING.BEEQUEEN_SPEED
     self.inst.hit_recovery = TUNING.BEEQUEEN_HIT_RECOVERY
 end
-
 
 FailIfSuccessDecorator = Class(DecoratorNode, function(self, child)
     DecoratorNode._ctor(self, "FailIfSuccess", child)

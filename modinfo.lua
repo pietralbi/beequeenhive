@@ -46,3 +46,17 @@ local function range(a, b, step)
 	end
 	return opts
 end
+
+configuration_options =
+{
+	{
+        name = "add_minimap_icon",
+        label = "Queen minimap icon",
+        options =
+	   {
+	      {description = "Off", data = false},
+	      {description = "On", data = true}
+	   },
+        default = false
+	}
+}

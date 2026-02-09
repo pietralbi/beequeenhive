@@ -242,7 +242,7 @@ local states =
             StopBuzz(inst)
             inst.components.locomotor:StopMoving()
             inst.AnimState:PlayAnimation("death")
-            inst:DropDeathLoot()
+            inst.components.lootdropper:DropLoot(Vector3(inst.Transform:GetWorldPosition()))
             inst.SoundEmitter:PlaySound(inst.sounds.death)
         end,
 

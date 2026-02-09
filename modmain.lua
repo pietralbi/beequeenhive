@@ -1,11 +1,6 @@
 -- UTILS
 local STRINGS = GLOBAL.STRINGS
 local TUNING = GLOBAL.TUNING
-local enabledROG = GLOBAL.IsDLCEnabled(GLOBAL.REIGN_OF_GIANTS)
-local enabledSHIP = GLOBAL.rawget(GLOBAL, "CAPY_DLC") and GLOBAL.IsDLCEnabled(GLOBAL.CAPY_DLC)
-local enabledPORK = GLOBAL.rawget(GLOBAL, "PORKLAND_DLC") and GLOBAL.IsDLCEnabled(GLOBAL.PORKLAND_DLC)
-local enabledAnyDLC = enabledROG or enabledSHIP or enabledPORK
-local vanilla = not enabledAnyDLC
 local require = GLOBAL.require
 
 local seg_time = 30
@@ -21,24 +16,48 @@ local MAX_INT = 2^53
 local DEBUG = false
 
 Assets = {
-    Assets, Asset("ATLAS", "minimap/beequeenhive.xml"),
-    Assets, Asset("ATLAS", "minimap/beequeenhivegrown.xml")
---  Asset("SOUND", "sound/beequeenhive.fsb"),
---	Asset("SOUNDPACKAGE", "sound/beequeenhive.fev"),
+    Asset("ATLAS", "minimap/beequeenhive.xml"),
+    Asset("ATLAS", "minimap/beequeenhivegrown.xml"),
+    Asset("ATLAS", "images/inventoryimages/jellybean.xml"),
+    Asset("ATLAS", "images/inventoryimages/royal_jelly.xml"),
+    Asset("ATLAS", "images/inventoryimages/hivehat.xml"),
+    Asset("SOUND", "sound/beequeenhive.fsb"),
+	Asset("SOUNDPACKAGE", "sound/beequeenhive.fev"),
 }
+
+RegisterInventoryItemAtlas("images/inventoryimages/jellybean.xml", "jellybean.tex")
+RegisterInventoryItemAtlas("images/inventoryimages/royal_jelly.xml", "royal_jelly.tex")
+RegisterInventoryItemAtlas("images/inventoryimages/hivehat.xml", "hivehat.tex")
 
 PrefabFiles = {
     "beequeenhive",
     "honeysplash",
     "beequeen",
     "beeguard",
-    "honey_trail"
+    "honey_trail",
+    "royal_jelly",
+    "hivehat"
 }
 
 local U = require("beequeenhive_utils")
 
-local DEPLOY_IGNORE_TAGS = { "NOBLOCK", "player", "FX", "INLIMBO", "DECOR" }
+AddMinimapAtlas("minimap/beequeenhive.xml")
+AddMinimapAtlas("minimap/beequeenhivegrown.xml")
 
+if GetModConfigData("add_minimap_icon") then
+    GLOBAL.table.insert(Assets, Asset("ATLAS", "minimap/beequeen.xml"))
+    AddMinimapAtlas("minimap/beequeen.xml")
+
+    local function AddMiniMapIcon(inst)
+        if inst.MiniMapEntity == nil then
+            inst.entity:AddMiniMapEntity()
+        end
+        inst.MiniMapEntity:SetIcon("beequeen.tex")
+    end
+    AddPrefabPostInit("beequeen", AddMiniMapIcon)
+end
+
+local DEPLOY_IGNORE_TAGS = { "NOBLOCK", "player", "FX", "INLIMBO", "DECOR" }
 local function GetBeehiveClusterScore(hive, cluster_radius)
     if hive == nil or hive.Transform == nil then
         return 0
@@ -258,6 +277,8 @@ TUNING.BEEQUEEN_TOTAL_GUARDS = 8
 TUNING.BEEQUEEN_CHASE_TO_RANGE = 8
 TUNING.BEEQUEEN_MAX_STUN_LOCKS = 4
 
+TUNING.DEFAULT_HIT_RECOVERY = .75
+
 TUNING.BEEQUEEN_DODGE_SPEED = 6
 TUNING.BEEQUEEN_DODGE_HIT_RECOVERY = 2
 TUNING.BEEQUEEN_AGGRO_DIST = 15
@@ -286,6 +307,45 @@ TUNING.BEEGUARD_PUFFY_DAMAGE = 40
 TUNING.BEEGUARD_PUFFY_ATTACK_PERIOD = 1.5
 TUNING.BOOK_BEES_MAX_ATTACK_RANGE = 5
 
+TUNING.JELLYBEANS_HEALTH = 125
+TUNING.ARMOR_HIVEHAT = 150 * 9
+TUNING.ARMOR_HIVEHAT_ABSORPTION = .7
+TUNING.ARMOR_HIVEHAT_SANITY_ABSORPTION = .5
+
+AddIngredientValues(
+    { "royal_jelly" },
+    { sweetener = 1 },   -- optional; can be {} if you only care about names.royal_jelly
+    true,               -- cancook
+    false               -- candry
+)
+
+local jellybean_recipe =
+{
+    name = "jellybean",
+    test = function(cooker, names, tags) return names.royal_jelly and not tags.inedible and not tags.monster end,
+    priority = 12,
+    weight = 1,
+    foodtype = "GENERIC",
+    health = TUNING.JELLYBEANS_HEALTH,
+    hunger = 0,
+    sanity = TUNING.SANITY_TINY,
+    cooktime = 2.5,
+}
+
+AddCookerRecipe("cookpot", jellybean_recipe)
+if U.enabledSHIP or U.enabledPORK then
+    AddCookerRecipe("portablecookpot", jellybean_recipe)
+end
+
+-- If crock pot mod is enabled, fix the UI to show the new SHIP/PORK icons
+local AddFoodTag = GLOBAL.AddFoodTag
+if AddFoodTag ~= nil and (U.enabledSHIP or U.enabledPORK) then
+    AddFoodTag('jellyfish', { name="Jellyfish", atlas="images/inventoryimages.xml" })
+    AddFoodTag('bone', { name="Snake Bone", tex="snake_bone.tex", atlas="images/inventoryimages.xml" })
+    AddFoodTag('antihistamine', { name="Antihistamine", tex="cutnettle.tex", atlas="images/inventoryimages.xml" })
+    AddFoodTag('filter', { name="Orange Piko", tex="piko_orange.tex", atlas="images/inventoryimages.xml" })
+end
+
 -- Extend locomotor component
 AddComponentPostInit("locomotor", function(LocoMotor)
     LocoMotor.tempgroundspeedmultiplier = nil
@@ -296,7 +356,8 @@ AddComponentPostInit("locomotor", function(LocoMotor)
     function LocoMotor:GetSpeedMultiplier()
         local multiplier = orig_GetSpeedMultiplier(self)
         -- Needs to substitute self.groundspeedmultiplier, not multiply it
-        if self.tempgroundspeedmultiplier then
+        if self.tempgroundspeedmultiplier and self:TempGroundSpeedMultiplier() then
+            -- U.log("LocoMotor:GetSpeedMultiplier")
             multiplier = multiplier / (self.groundspeedmultiplier or 1)
             multiplier = multiplier * self:TempGroundSpeedMultiplier()
         end
@@ -316,8 +377,11 @@ AddComponentPostInit("locomotor", function(LocoMotor)
 
     -- New functions
     function LocoMotor:PushTempGroundSpeedMultiplier(mult, tile)
+        -- U.log("LocoMotor:PushTempGroundSpeedMultiplier")
         if self.enablegroundspeedmultiplier then
             local t = GLOBAL.GetTime()
+            -- U.log("         : tempgroundspeedmultiplier " .. tostring(self.tempgroundspeedmultiplier))
+            -- U.log("         : tempgroundspeedmulttime " .. tostring(self.tempgroundspeedmulttime))
             if self.tempgroundspeedmultiplier == nil or
                 t > self.tempgroundspeedmulttime or
                 mult <= self.tempgroundspeedmultiplier then
@@ -329,7 +393,10 @@ AddComponentPostInit("locomotor", function(LocoMotor)
     end
 
     function LocoMotor:TempGroundSpeedMultiplier()
+        -- U.log("LocoMotor:TempGroundSpeedMultiplier")
         if self.tempgroundspeedmultiplier ~= nil then
+            -- U.log("         : tempgroundspeedmultiplier " .. tostring(self.tempgroundspeedmultiplier))
+            -- U.log("         : tempgroundspeedmulttime " .. tostring(self.tempgroundspeedmulttime))
             if self.tempgroundspeedmulttime + 0.034 > GLOBAL.GetTime() then
                 return self.tempgroundspeedmultiplier
             end
@@ -340,7 +407,10 @@ AddComponentPostInit("locomotor", function(LocoMotor)
     end
 
     function LocoMotor:TempGroundTile()
+        -- U.log("LocoMotor:TempGroundTile")
         if self.tempgroundtile ~= nil then
+            -- U.log("         : tempgroundspeedmultiplier " .. tostring(self.tempgroundspeedmultiplier))
+            -- U.log("         : tempgroundspeedmulttime " .. tostring(self.tempgroundspeedmulttime))
             if self.tempgroundspeedmulttime + 0.034 > GLOBAL.GetTime() then
                 return self.tempgroundtile
             end
